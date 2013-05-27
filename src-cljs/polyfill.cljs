@@ -29,3 +29,8 @@
                   fallback-request-animation-frame)
     (polyfill-fn js/window candidate-request-fns "cancelAnimationFrame"
                   fallback-cancel-animation-frame)))
+
+(defn make-renderer []
+  (if (.-WebGLRenderingContext js/window)
+    (THREE.WebGLRenderer.)
+    (THREE.CanvasRenderer.)))

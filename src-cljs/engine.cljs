@@ -66,7 +66,7 @@
         cube (THREE.Mesh. geometry material)
         light (THREE.PointLight. 0xFFFFFF)
         scene (THREE.Scene.)
-        renderer (THREE.WebGLRenderer.)]
+        renderer (polyfill/make-renderer)]
     (set-pos camera 0 0 2)
     (set-pos light 50 50 130)
     (.add scene light)
@@ -91,9 +91,9 @@
     ;(rotate cube 0.01 0.012 0)
     (.render renderer scene camera)))
 
-(defn show-message [message]
+(defn show-message [& messages]
   (if-let [message-div (.getElementById js/document "message")]
-    (set! (.-innerText message-div) message)))
+    (set! (.-innerText message-div) (str messages))))
 
 (defn format-coordinates [c]
   (let [[x y z] [(.-x c) (.-y c) (.-z c)]]
@@ -113,20 +113,23 @@
   (render))
 
 (defn ^:export init []
-  (polyfill/animation-frame)
-  (reset! world (init-world))
-  (let [loc (.-location js/window)
-        ws-base-path (str "ws://" (.-host loc))
-        cube-position-uri (str ws-base-path "/cube-position")]
-    (reset!  cube-position-socket (ws/make-socket cube-position-uri
-                                                  (fn [msg]
-                                                    (let [{:keys [x y z]} (reader/read-string msg)
-                                                          cube (:cube @world)]
-                                                      (set-pos cube x y z)))
-                                                  (fn [error]
-                                                    (log "error: " error))
-                                                  (fn [code reason was-clean?]
-                                                    (log "close - code: " code
-                                                         ", reason: " reason
-                                                         ", was-clean?: " was-clean?)))))
+  (try
+    (polyfill/animation-frame)
+    (reset! world (init-world))
+    (let [loc (.-location js/window)
+          ws-base-path (str "ws://" (.-host loc))
+          cube-position-uri (str ws-base-path "/cube-position")]
+      (reset!  cube-position-socket (ws/make-socket cube-position-uri
+                                                    (fn [msg]
+                                                      (let [{:keys [x y z]} (reader/read-string msg)
+                                                            cube (:cube @world)]
+                                                        (set-pos cube x y z)))
+                                                    (fn [error]
+                                                      (log "error: " error))
+                                                    (fn [code reason was-clean?]
+                                                      (log "close - code: " code
+                                                           ", reason: " reason
+                                                           ", was-clean?: " was-clean?)))))
+    (catch js/Error ex
+      (show-message "Failed to initialize: " (.toString ex) (.-stack ex))))
   (animation-loop))
