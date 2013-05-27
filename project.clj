@@ -6,11 +6,12 @@
   :plugins [[lein-cljsbuild "0.3.2"]
             [lein-ring "0.8.5"]]
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [ring "1.1.8"]
+                 [ring/ring-devel "1.1.8"]
+                 [ring/ring-core "1.1.8"]
                  [compojure "1.1.5"]
-                 [hiccup "1.0.3"]]
+                 [hiccup "1.0.3"]
+                 [http-kit "2.1.3"]]
   :main three-js-puppet.core
-  :ring {:handler three-js-puppet.core/main-routes}
   :hooks [leiningen.cljsbuild]
   :cljsbuild {
               :builds [{:source-paths ["src-cljs"]

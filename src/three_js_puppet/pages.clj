@@ -8,4 +8,5 @@
    [:body
     [:div#message "ohai!"]
     (include-js "three.js"
-                "app.js")]))
+                "app.js")
+    [:script "three_js_puppet.engine.init();"]]))

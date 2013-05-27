@@ -20,11 +20,11 @@
                          (some #(when % %)))]
     (aset obj new-name (or existing-fn fallback-impl))))
 
-(defn polyfill-request-animation-frame []
+(defn animation-frame []
   (let [vendors #{"ms" "moz" "webkit" "o"}
         candidate-request-fns (map #(str % "RequestAnimationFrame") vendors)
         candidate-cancel-fns (concat (map #(str % "CancelAnimationFrame") vendors)
-                                     (map #(str % "CancelRequestAnimationFrame" vendors)))]
+                                     (map #(str % "CancelRequestAnimationFrame") vendors))]
     (polyfill-fn js/window candidate-request-fns "requestAnimationFrame"
                   fallback-request-animation-frame)
     (polyfill-fn js/window candidate-request-fns "cancelAnimationFrame"

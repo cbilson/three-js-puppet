@@ -1,5 +1,8 @@
 (ns three-js-puppet.engine
-  (:require [three-js-puppet.polyfill :refer [polyfill-request-animation-frame]]))
+  (:require [cljs.reader :as reader]
+            [three-js-puppet.polyfill :as polyfill]
+            [three-js-puppet.web-socket :as ws]
+            [three-js-puppet.log :refer [log]]))
 
 (def THREE js/THREE)
 
@@ -26,9 +29,7 @@
     (set! (.-z rotation) (mod-2-pi (+ (.-z rotation) z)))))
 
 (def world (atom nil))
-
-(defn console-log [& stuff]
-  (.. js/window -console (log (apply str stuff))))
+(def cube-position-socket (atom nil))
 
 (defn move-cube [event]
   (swap! world
@@ -42,6 +43,7 @@
                                  (.-y (.-position cube))
                                  (- (.-z (.-position cube)) dy)]]
                  (.preventDefault event)
+                 (.send @cube-position-socket (pr-str {:x x' :y y' :z z'}))
                  (set-pos cube x' y' z')
                  (assoc old :mouse-down-pos [mouse-x mouse-y]))
                old)))))
@@ -86,7 +88,7 @@
 
 (defn render []
   (let [{:keys [cube renderer scene camera]} @world]
-    (rotate cube 0.01 0.012 0)
+    ;(rotate cube 0.01 0.012 0)
     (.render renderer scene camera)))
 
 (defn show-message [message]
@@ -110,8 +112,21 @@
   (show-message (format-status-message))
   (render))
 
-(defn ^export init []
+(defn ^:export init []
+  (polyfill/animation-frame)
   (reset! world (init-world))
+  (let [loc (.-location js/window)
+        ws-base-path (str "ws://" (.-host loc))
+        cube-position-uri (str ws-base-path "/cube-position")]
+    (reset!  cube-position-socket (ws/make-socket cube-position-uri
+                                                  (fn [msg]
+                                                    (let [{:keys [x y z]} (reader/read-string msg)
+                                                          cube (:cube @world)]
+                                                      (set-pos cube x y z)))
+                                                  (fn [error]
+                                                    (log "error: " error))
+                                                  (fn [code reason was-clean?]
+                                                    (log "close - code: " code
+                                                         ", reason: " reason
+                                                         ", was-clean?: " was-clean?)))))
   (animation-loop))
-
-(init)
