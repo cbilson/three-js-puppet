@@ -1,7 +1,7 @@
 (ns three-js-puppet.connection
   (:require [three-js-puppet.util :refer [log]]))
 
-(defn ^:export make-socket [uri on-message on-close on-error]
+(defn ^:export make-connection [uri on-message on-close on-error]
   (let [socket
         (if (nil? (.-MozWebSocket js/window))
           (js/WebSocket. uri)

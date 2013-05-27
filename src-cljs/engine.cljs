@@ -147,10 +147,10 @@
         ws-base-path (str "ws://" (.-host loc))
         cube-position-uri (str ws-base-path "/cube-position")]
     (reset!  cube-position-socket
-             (conn/make-socket cube-position-uri
-                               cube-position-received
-                               cube-position-error
-                               connection-closed))))
+             (conn/make-connection cube-position-uri
+                                   cube-position-received
+                                   cube-position-error
+                                   connection-closed))))
 
 (defn animation-loop []
   (js/requestAnimationFrame animation-loop)
