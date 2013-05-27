@@ -33,7 +33,12 @@
     (println "connected")
     (send cube-channels conj channel)
     (hk/on-close channel (partial cube-position-channel-closed channel))
-    (hk/on-receive channel (partial receive-cube-position channel))))
+    (hk/on-receive channel (partial receive-cube-position channel))
+
+    ;; send the client the initial position
+    (hk/send! channel {:status 200
+                       :headers {"Content-type" "text/edn"}
+                       :body (pr-str @cube-position)})))
 
 (defroutes all-routes
   (GET "/" [] (pages/index-page))

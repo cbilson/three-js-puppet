@@ -20,17 +20,16 @@
                          (some #(when % %)))]
     (aset obj new-name (or existing-fn fallback-impl))))
 
-(defn animation-frame []
-  (let [vendors #{"ms" "moz" "webkit" "o"}
-        candidate-request-fns (map #(str % "RequestAnimationFrame") vendors)
-        candidate-cancel-fns (concat (map #(str % "CancelAnimationFrame") vendors)
-                                     (map #(str % "CancelRequestAnimationFrame") vendors))]
-    (polyfill-fn js/window candidate-request-fns "requestAnimationFrame"
-                  fallback-request-animation-frame)
-    (polyfill-fn js/window candidate-request-fns "cancelAnimationFrame"
-                  fallback-cancel-animation-frame)))
+(let [vendors #{"ms" "moz" "webkit" "o"}
+      candidate-request-fns (map #(str % "RequestAnimationFrame") vendors)
+      candidate-cancel-fns (concat (map #(str % "CancelAnimationFrame") vendors)
+                                   (map #(str % "CancelRequestAnimationFrame") vendors))]
+  (polyfill-fn js/window candidate-request-fns "requestAnimationFrame"
+               fallback-request-animation-frame)
+  (polyfill-fn js/window candidate-request-fns "cancelAnimationFrame"
+               fallback-cancel-animation-frame))
 
-(defn make-renderer []
+(defn ^:export make-renderer []
   (if (.-WebGLRenderingContext js/window)
     (THREE.WebGLRenderer.)
     (THREE.CanvasRenderer.)))

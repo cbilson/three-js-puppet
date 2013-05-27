@@ -1,5 +1,5 @@
-(ns three-js-puppet.web-socket
-  (:require [three-js-puppet.log :refer [log]]))
+(ns three-js-puppet.connection
+  (:require [three-js-puppet.util :refer [log]]))
 
 (defn ^:export make-socket [uri on-message on-close on-error]
   (let [socket
