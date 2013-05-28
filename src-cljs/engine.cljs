@@ -1,35 +1,10 @@
 (ns three-js-puppet.engine
-  (:require [cljs.reader :as reader]
-            [three-js-puppet.polyfill :as polyfill]
-            [three-js-puppet.connection :as conn]
-            [three-js-puppet.util :refer [log on-load listen]]))
-
-(def THREE js/THREE)
-
-(defn move-to [thing x y z]
-  (let [pos (.-position thing)]
-    (set! (.-x pos) x)
-    (set! (.-y pos) y)
-    (set! (.-z pos) z)))
-
-(defn move [thing x y z]
-  (let [pos (.-position thing)]
-    (move-to thing
-             (+ x (.-x thing))
-             (+ y (.-y thing))
-             (+ z (.-z thing)))))
-
-(defn mod-2-pi [x]
-  (mod x (* 2 Math/PI)))
-
-(defn rotate [obj x y z]
-  (let [rotation (.-rotation obj)]
-    (set! (.-x rotation) (mod-2-pi (+ (.-x rotation) x)))
-    (set! (.-y rotation) (mod-2-pi (+ (.-y rotation) y)))
-    (set! (.-z rotation) (mod-2-pi (+ (.-z rotation) z)))))
+  (:require [three-js-puppet.connection :as conn]
+            [three-js-puppet.graphics :as gfx]
+            [three-js-puppet.util :refer [log on-load listen $id]]
+            [clojure.string :as str]))
 
 (def world (atom nil))
-(def cube-position-socket (atom nil))
 
 (defn move-cube [{cube :cube [prev-x prev-y] :move-start-pos :as old-world} new-x new-y]
   (let [[dx dy] [(/ (- new-x prev-x) 100.0)
@@ -37,8 +12,8 @@
         [x' y' z'] [(+ (.-x (.-position cube)) dx)
                     (.-y (.-position cube))
                     (- (.-z (.-position cube)) dy)]]
-    (.send @cube-position-socket (pr-str {:x x' :y y' :z z'}))
-    (move-to cube x' y' z')
+    (conn/send (pr-str {:x x' :y y' :z z'}))
+    (gfx/move-to cube x' y' z')
     (assoc old-world :move-start-pos [new-x new-y])))
 
 (defn start-moving-cube [x y]
@@ -74,31 +49,24 @@
 
 (defn init-world []
   (let [aspect (/ window/innerWidth window/innerHeight)
-        camera (THREE.PerspectiveCamera. 75 aspect 0.1 1000)
-        geometry (THREE.CubeGeometry. 1 1 1)
-        material (THREE.MeshLambertMaterial. (js-obj "color" 0xD128E8))
-        cube (THREE.Mesh. geometry material)
-        light (THREE.PointLight. 0xFFFFFF)
-        scene (THREE.Scene.)
-        renderer (polyfill/make-renderer)]
-    (move-to camera 0 0 2)
-    (move-to light 50 50 130)
+        camera (gfx/camera 75 aspect 0.1 1000)
+        cube (gfx/mesh (gfx/quadrilateral 1 1 1) (gfx/material :lambert :color 0xD128E8))
+        light (gfx/light :point :color 0xFFFFFF)
+        scene (gfx/scene light cube)
+        renderer (gfx/renderer window/innerWidth window/innerHeight)]
+    (gfx/move-to camera 0 0 2)
+    (gfx/move-to light 50 50 130)
 
     ;; put the cube off screen until we get an update from the server
-    (move-to cube 0 0 1e6)
+    (gfx/move-to cube 0 0 1e6)
 
-    (.add scene light)
-    (.add scene cube)
-    (.setSize renderer window/innerWidth window/innerHeight)
-    (let [renderer-element (.-domElement renderer)]
-      (.appendChild (.-body js/document) renderer-element)
-      (listen renderer-element
-              :mousedown mouse-down
-              :mouseup stop-moving-cube
-              :mousemove mouse-move
-              :touchstart touch-start
-              :touchmove touch-move
-              :touchend stop-moving-cube))
+    (listen (.-domElement renderer)
+            :mousedown mouse-down
+            :mouseup stop-moving-cube
+            :mousemove mouse-move
+            :touchstart touch-start
+            :touchmove touch-move
+            :touchend stop-moving-cube)
 
     {:scene scene
      :camera camera
@@ -110,12 +78,16 @@
 
 (defn render []
   (let [{:keys [cube renderer scene camera]} @world]
-                                        ;(rotate cube 0.01 0.012 0)
+                                        ;(gfx/rotate cube 0.01 0.012 0)
     (.render renderer scene camera)))
 
 (defn show-message [& messages]
-  (if-let [message-div (.getElementById js/document "message")]
+  (if-let [message-div ($id "message")]
     (set! (.-innerText message-div) (str messages))))
+
+(defn show-error [& messages]
+  (if-let [error-div ($id "error")]
+    (set! (.-innerText error-div) (str/join messages))))
 
 (defn format-coordinates [c]
   (let [[x y z] [(.-x c) (.-y c) (.-z c)]]
@@ -132,7 +104,7 @@
 (defn cube-position-received [msg]
   (let [{:keys [x y z]} (reader/read-string msg)
         cube (:cube @world)]
-    (move-to cube x y z)))
+    (gfx/move-to cube x y z)))
 
 (defn cube-position-error [error]
   (log "error: " error))
@@ -142,26 +114,17 @@
        ", reason: " reason
        ", was-clean?: " was-clean?))
 
-(defn make-cube-position-connection []
-  (let [loc (.-location js/window)
-        ws-base-path (str "ws://" (.-host loc))
-        cube-position-uri (str ws-base-path "/cube-position")]
-    (reset!  cube-position-socket
-             (conn/make-connection cube-position-uri
-                                   cube-position-received
-                                   cube-position-error
-                                   connection-closed))))
-
 (defn animation-loop []
   (js/requestAnimationFrame animation-loop)
   (show-message (format-status-message))
   (render))
 
 (defn ^:export init []
-  (reset! world (init-world))
   (on-load
    (try
-     (make-cube-position-connection)
+     (reset! world (init-world))
+     (conn/connect cube-position-received connection-closed cube-position-error)
+     (animation-loop)
      (catch js/Error ex
-       (show-message "Failed to initialize: " (.toString ex) (.-stack ex)))))
-  (animation-loop))
+       (show-error "Failed to initialize: " (.toString ex) (.-stack ex))
+       (throw ex)))))

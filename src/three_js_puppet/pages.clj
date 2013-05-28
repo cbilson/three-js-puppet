@@ -7,6 +7,7 @@
     (include-css "app.css")]
    [:body
     [:div#message "ohai!"]
+    [:div#error]
     (include-js "three.js"
                 "app.js")
     [:script "three_js_puppet.engine.init();"]]))

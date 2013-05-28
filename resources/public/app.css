@@ -4,9 +4,19 @@ canvas {
 }
 
 #message {
-  color: red;
+  color: gray;
   font: bold 15px sans-serif;
   position: absolute;
   right: 0px;
   top: 0px;
 }
+
+#error {
+  color: red;
+  font: bold 12px monospace;
+  white-space: pre;
+  position: absolute;
+  left: 100px;
+  top: 100px;
+}
+
